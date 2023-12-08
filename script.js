@@ -18,10 +18,6 @@ function getUserMediaSupported() {
   } else {
     console.warn('getUserMedia() is not supported by your browser');
   }
-  
-  // Placeholder function for next step. Paste over this in the next step.
-  function enableCam(event) {
-  }
 
   // Enable the live webcam view and start classification.
 function enableCam(event) {
@@ -45,10 +41,20 @@ function enableCam(event) {
     });
   }
 
-  // Placeholder function for next step.
-function predictWebcam() {
+// MOVENET
+const MODEL_PATH = '/kaggle/input/movenet/tfjs/singlepose-lightning/1';
+let movent = undefined;
+
+async function loadAndRunModel(){
+  movenet = await tf.loadGraphModel(MODEL_PATH, {fromTFHub: true});
+
+  let exampleInputTensor = tf.zeros([1, 192, 192, 3], 'int32');
+  let tensorOutput = movenet.predict(exampleInputTensor);
+
+  console.log(arrayOutput);
 }
 
+loadAndRunModel();
 
 // Store the resulting model in the global scope of our app.
 var model = undefined;
