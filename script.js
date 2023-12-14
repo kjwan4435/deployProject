@@ -1,3 +1,5 @@
+
+
 const video = document.getElementById('webcam');
 const liveView = document.getElementById('liveView');
 const demosSection = document.getElementById('demos');
@@ -22,7 +24,7 @@ function getUserMediaSupported() {
   // Enable the live webcam view and start classification.
 function enableCam(event) {
     // Only continue if the COCO-SSD has finished loading.
-    if (!model) {
+    if (!blazepose) {
       return;
     }
     
@@ -43,72 +45,90 @@ function enableCam(event) {
 
 // MOVENET
 const MODEL_PATH = '/kaggle/input/movenet/tfjs/singlepose-lightning/1';
-let movent = undefined;
+let movenet = undefined;
+let blazepose = undefined;
 
-async function loadAndRunModel(){
-  movenet = await tf.loadGraphModel(MODEL_PATH, {fromTFHub: true});
+console.log("start model load");
 
-  let exampleInputTensor = tf.zeros([1, 192, 192, 3], 'int32');
-  let tensorOutput = movenet.predict(exampleInputTensor);
-
-  console.log(arrayOutput);
+async function loadAndRunMoveNet(){
+  movenet = await poseDetection.createDetector(poseDetection.SupportedModels.MoveNet);
+  console.log("MoveNet loaded");
 }
 
-loadAndRunModel();
+async function loadAndRunBlazePose(){
+  const blazeModel = poseDetection.SupportedModels.BlazePose;
+  const blazeConfig = {
+    runtime: 'tfjs',
+    enableSmoothing: true,
+    modelType: 'full'
+  };
+  blazepose = await poseDetection.createDetector(blazeModel, blazeConfig);
+  console.log("BlazePose loaded");
+
+  demosSection.classList.remove('invisible');
+}
+
+loadAndRunMoveNet();
+loadAndRunBlazePose();
 
 // Store the resulting model in the global scope of our app.
-var model = undefined;
+// var model = undefined;
 
-// Before we can use COCO-SSD class we must wait for it to finish
-// loading. Machine Learning models can be large and take a moment 
-// to get everything needed to run.
-// Note: cocoSsd is an external object loaded from our index.html
-// script tag import so ignore any warning in Glitch.
-cocoSsd.load().then(function (loadedModel) {
-  model = loadedModel;
-  // Show demo section now model is ready to use.
-  demosSection.classList.remove('invisible');
-});
+// // Before we can use COCO-SSD class we must wait for it to finish
+// // loading. Machine Learning models can be large and take a moment 
+// // to get everything needed to run.
+// // Note: cocoSsd is an external object loaded from our index.html
+// // script tag import so ignore any warning in Glitch.
+// cocoSsd.load().then(function (loadedModel) {
+//   model = loadedModel;
+//   // Show demo section now model is ready to use.
+//   demosSection.classList.remove('invisible');
+// });
 
 var children = [];
 
 function predictWebcam() {
-  // Now let's start classifying a frame in the stream.
-  model.detect(video).then(function (predictions) {
-    // Remove any highlighting we did previous frame.
-    for (let i = 0; i < children.length; i++) {
-      liveView.removeChild(children[i]);
-    }
-    children.splice(0);
-    
-    // Now lets loop through predictions and draw them to the live view if
-    // they have a high confidence score.
-    for (let n = 0; n < predictions.length; n++) {
-      // If we are over 66% sure we are sure we classified it right, draw it!
-      if (predictions[n].score > 0.66) {
-        const p = document.createElement('p');
-        p.innerText = predictions[n].class  + ' - with ' 
-            + Math.round(parseFloat(predictions[n].score) * 100) 
-            + '% confidence.';
-        p.style = 'margin-left: ' + predictions[n].bbox[0] + 'px; margin-top: '
-            + (predictions[n].bbox[1] - 10) + 'px; width: ' 
-            + (predictions[n].bbox[2] - 10) + 'px; top: 0; left: 0;';
-
-        const highlighter = document.createElement('div');
-        highlighter.setAttribute('class', 'highlighter');
-        highlighter.style = 'left: ' + predictions[n].bbox[0] + 'px; top: '
-            + predictions[n].bbox[1] + 'px; width: ' 
-            + predictions[n].bbox[2] + 'px; height: '
-            + predictions[n].bbox[3] + 'px;';
-
-        liveView.appendChild(highlighter);
-        liveView.appendChild(p);
-        children.push(highlighter);
-        children.push(p);
-      }
-    }
-    
-    // Call this function again to keep predicting when the browser is ready.
+  movenet.estimatePoses(video).then( predictions => console.log(predictions));
+  blazepose.estimatePoses(video).then( predictions => {
+    console.log(predictions);
     window.requestAnimationFrame(predictWebcam);
   });
+  // Now let's start classifying a frame in the stream.
+  // model.detect(video).then(function (predictions) {
+  //   // Remove any highlighting we did previous frame.
+  //   for (let i = 0; i < children.length; i++) {
+  //     liveView.removeChild(children[i]);
+  //   }
+  //   children.splice(0);
+    
+  //   // Now lets loop through predictions and draw them to the live view if
+  //   // they have a high confidence score.
+  //   for (let n = 0; n < predictions.length; n++) {
+  //     // If we are over 66% sure we are sure we classified it right, draw it!
+  //     if (predictions[n].score > 0.66) {
+  //       const p = document.createElement('p');
+  //       p.innerText = predictions[n].class  + ' - with ' 
+  //           + Math.round(parseFloat(predictions[n].score) * 100) 
+  //           + '% confidence.';
+  //       p.style = 'margin-left: ' + predictions[n].bbox[0] + 'px; margin-top: '
+  //           + (predictions[n].bbox[1] - 10) + 'px; width: ' 
+  //           + (predictions[n].bbox[2] - 10) + 'px; top: 0; left: 0;';
+
+  //       const highlighter = document.createElement('div');
+  //       highlighter.setAttribute('class', 'highlighter');
+  //       highlighter.style = 'left: ' + predictions[n].bbox[0] + 'px; top: '
+  //           + predictions[n].bbox[1] + 'px; width: ' 
+  //           + predictions[n].bbox[2] + 'px; height: '
+  //           + predictions[n].bbox[3] + 'px;';
+
+  //       liveView.appendChild(highlighter);
+  //       liveView.appendChild(p);
+  //       children.push(highlighter);
+  //       children.push(p);
+  //     }
+  //   }
+    
+  //   // Call this function again to keep predicting when the browser is ready.
+  //   window.requestAnimationFrame(predictWebcam);
+  // });
 }
